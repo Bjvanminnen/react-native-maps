@@ -10,5 +10,5 @@
 #import "RCTViewManager.h"
 
 @interface AIRMapManager : RCTViewManager
-
+  @property (nonatomic, assign) double rotationStart;
 @end

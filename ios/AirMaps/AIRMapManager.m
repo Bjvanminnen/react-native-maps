@@ -62,9 +62,9 @@ RCT_EXPORT_MODULE()
 
     [map addGestureRecognizer:tap];
     [map addGestureRecognizer:longPress];
-    [map addGestureRecognizer:drag];
-    [map addGestureRecognizer:rotate];
+    // [map addGestureRecognizer:drag];
     [map addGestureRecognizer:pinch];
+    [map addGestureRecognizer:rotate];
 
     return map;
 }
@@ -473,53 +473,29 @@ RCT_EXPORT_METHOD(takeSnapshot:(nonnull NSNumber *)reactTag
 - (void)handleMapPinch:(UIPinchGestureRecognizer*)recognizer {
     AIRMap *map = (AIRMap *)recognizer.view;
 
-    switch ([recognizer state]) {
-      case UIGestureRecognizerStateBegan: {
-        self.pinchStartWidth = map.visibleMapRect.size.width;
-        self.pinchStartHeight = map.visibleMapRect.size.height;
-      }
-      break;
-      case UIGestureRecognizerStateChanged: {
-        MKMapRect rect = map.visibleMapRect;
-        double oldWidth = rect.size.width;
-        double oldHeight = rect.size.height;
-        rect.size.width = self.pinchStartWidth / recognizer.scale;
-        rect.size.height = self.pinchStartHeight / recognizer.scale;
-        // Origin is the top left, and needs to be adjusted to keep center in
-        // the same spot
-        rect.origin.x -= (rect.size.width - oldWidth) / 2;
-        rect.origin.y -= (rect.size.height - oldHeight) / 2;
-        [map setVisibleMapRect:rect animated:NO];
-      }
-      break;
-      case UIGestureRecognizerStateEnded: {
-        self.pinchStartWidth = 0;
-        self.pinchStartHeight = 0;
-      }
-      break;
-    }
-
-//    NSLog(@"brent pinch %f", recognizer.scale);
+    MKMapRect rect = map.visibleMapRect;
+    double oldWidth = rect.size.width;
+    double oldHeight = rect.size.height;
+    rect.size.width /= recognizer.scale;
+    rect.size.height /= recognizer.scale;
+    // Origin is the top left, and needs to be adjusted to keep center in
+    // the same spot
+    rect.origin.x -= (rect.size.width - oldWidth) / 2;
+    rect.origin.y -= (rect.size.height - oldHeight) / 2;
+    double heading = map.camera.heading;
+    // limited in how far out i can zoom??
+    [map setVisibleMapRect:rect animated:NO];
+    // might be able to get rid of this when simultaneous?
+    map.camera.heading = heading;
+    recognizer.scale = 1;
 }
 
 - (void)handleMapRotate:(UIRotationGestureRecognizer*)recognizer {
   AIRMap *map = (AIRMap *)recognizer.view;
 
-  switch ([recognizer state]) {
-    case UIGestureRecognizerStateBegan: {
-      self.rotationStart = map.camera.heading;
-    }
-    break;
-    case UIGestureRecognizerStateChanged: {
-      double rotation = (recognizer.rotation * 180 / M_PI);
-      map.camera.heading = self.rotationStart - rotation;
-    }
-    break;
-    case UIGestureRecognizerStateEnded: {
-      self.rotationStart = 0;
-    }
-    break;
-  }
+  double rotation = (recognizer.rotation * 180 / M_PI);
+  map.camera.heading -= rotation;
+  recognizer.rotation = 0;
 }
 
 - (void)handleMapLongPress:(UITapGestureRecognizer *)recognizer {

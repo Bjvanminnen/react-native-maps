@@ -64,7 +64,7 @@ RCT_EXPORT_MODULE()
     [map addGestureRecognizer:longPress];
     [map addGestureRecognizer:drag];
     [map addGestureRecognizer:rotate];
-    // [map addGestureRecognizer:pinch];
+    [map addGestureRecognizer:pinch];
 
     return map;
 }
@@ -475,20 +475,31 @@ RCT_EXPORT_METHOD(takeSnapshot:(nonnull NSNumber *)reactTag
 
     switch ([recognizer state]) {
       case UIGestureRecognizerStateBegan: {
-        NSLog(@"brent BEGAN");
+        self.pinchStartWidth = map.visibleMapRect.size.width;
+        self.pinchStartHeight = map.visibleMapRect.size.height;
       }
       break;
       case UIGestureRecognizerStateChanged: {
-        NSLog(@"brent CHANGED");
+        MKMapRect rect = map.visibleMapRect;
+        double oldWidth = rect.size.width;
+        double oldHeight = rect.size.height;
+        rect.size.width = self.pinchStartWidth / recognizer.scale;
+        rect.size.height = self.pinchStartHeight / recognizer.scale;
+        // Origin is the top left, and needs to be adjusted to keep center in
+        // the same spot
+        rect.origin.x -= (rect.size.width - oldWidth) / 2;
+        rect.origin.y -= (rect.size.height - oldHeight) / 2;
+        [map setVisibleMapRect:rect animated:NO];
       }
       break;
       case UIGestureRecognizerStateEnded: {
-        NSLog(@"brent ENDED");
+        self.pinchStartWidth = 0;
+        self.pinchStartHeight = 0;
       }
       break;
     }
 
-    NSLog(@"brent pinch %f", recognizer.scale);
+//    NSLog(@"brent pinch %f", recognizer.scale);
 }
 
 - (void)handleMapRotate:(UIRotationGestureRecognizer*)recognizer {

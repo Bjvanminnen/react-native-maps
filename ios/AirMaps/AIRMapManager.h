@@ -11,4 +11,6 @@
 
 @interface AIRMapManager : RCTViewManager
   @property (nonatomic, assign) double rotationStart;
+  @property (nonatomic, assign) double pinchStartWidth;
+  @property (nonatomic, assign) double pinchStartHeight;
 @end

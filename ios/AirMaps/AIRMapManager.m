@@ -57,13 +57,16 @@ RCT_EXPORT_MODULE()
     tap.cancelsTouchesInView = NO;
     longPress.cancelsTouchesInView = NO;
 
+    pinch.delegate = self;
+    rotate.delegate = self;
+
     // disable drag by default
     drag.enabled = NO;
 
     [map addGestureRecognizer:tap];
     [map addGestureRecognizer:longPress];
     // [map addGestureRecognizer:drag];
-    [map addGestureRecognizer:pinch];
+    // [map addGestureRecognizer:pinch];
     [map addGestureRecognizer:rotate];
 
     return map;
@@ -470,31 +473,98 @@ RCT_EXPORT_METHOD(takeSnapshot:(nonnull NSNumber *)reactTag
 //
 }
 
+// TODO - possible it should depend on genstures
+- (BOOL)gestureRecognizer:(UIGestureRecognizer *)one shouldRecognizeSimultaneouslyWithGestureRecognizer:(UIGestureRecognizer *)two {
+  if (([one isKindOfClass:[UIRotationGestureRecognizer class]] && [two isKindOfClass:[UIPinchGestureRecognizer class]]) ||
+      ([one isKindOfClass:[UIPinchGestureRecognizer class]] && [two isKindOfClass:[UIRotationGestureRecognizer class]])) {
+    NSLog(@"brent should?: %@ %@", NSStringFromClass([one class]), NSStringFromClass([two class]));
+    // return YES;
+  }
+  return NO;
+}
+
 - (void)handleMapPinch:(UIPinchGestureRecognizer*)recognizer {
     AIRMap *map = (AIRMap *)recognizer.view;
 
+
     MKMapRect rect = map.visibleMapRect;
-    double oldWidth = rect.size.width;
-    double oldHeight = rect.size.height;
-    rect.size.width /= recognizer.scale;
-    rect.size.height /= recognizer.scale;
-    // Origin is the top left, and needs to be adjusted to keep center in
-    // the same spot
-    rect.origin.x -= (rect.size.width - oldWidth) / 2;
-    rect.origin.y -= (rect.size.height - oldHeight) / 2;
-    double heading = map.camera.heading;
-    // limited in how far out i can zoom??
-    [map setVisibleMapRect:rect animated:NO];
-    // might be able to get rid of this when simultaneous?
-    map.camera.heading = heading;
-    recognizer.scale = 1;
+    NSLog(@"brent pinch %f", recognizer.scale);
+
+    if (true) {
+      double oldWidth = rect.size.width;
+      double oldHeight = rect.size.height;
+      rect.size.width /= recognizer.scale;
+      rect.size.height /= recognizer.scale;
+      // Origin is the top left, and needs to be adjusted to keep center in
+      // the same spot
+      rect.origin.x -= (rect.size.width - oldWidth) / 2;
+      rect.origin.y -= (rect.size.height - oldHeight) / 2;
+      double heading = map.camera.heading;
+      // limited in how far out i can zoom??
+      [map setVisibleMapRect:rect animated:NO];
+      // might be able to get rid of this when simultaneous?
+      map.camera.heading = heading;
+      recognizer.scale = 1;
+    }
 }
 
+float _rotateStartDistance = 0;
+float minDistance = 100;
+float maxDistance = 3000;
+float cameraDistance = 1000;
 - (void)handleMapRotate:(UIRotationGestureRecognizer*)recognizer {
   AIRMap *map = (AIRMap *)recognizer.view;
+  //NSLog(@"brent rotate %@", recognizer.transformAnalyzer);
+
+
+  if (recognizer.numberOfTouches >= 2) {
+
+    CGPoint p1 = [recognizer locationOfTouch:0 inView:map];
+    CGPoint p2 = [recognizer locationOfTouch:1 inView:map];
+
+    float distance = sqrt(pow(p2.x - p1.x, 2) + pow(p2.y - p1.y, 2));
+
+    switch ([recognizer state]) {
+      case UIGestureRecognizerStateBegan: {
+        _rotateStartDistance = distance;
+        MKCoordinateRegion region = map.region;
+        region.span.latitudeDelta *= 1.5;
+        region.span.longitudeDelta *= 1.5;
+        [map setRegion:region animated:NO];
+      }
+      break;
+      case UIGestureRecognizerStateChanged: {
+        // TODO - this works, but we arent able to just pinch (only pinch and rotate)
+        float scale = distance / _rotateStartDistance;
+        cameraDistance /= scale;
+        cameraDistance = MIN(cameraDistance, maxDistance);
+        cameraDistance = MAX(cameraDistance, minDistance);
+        // NSLog(@"brent %f", scale);
+
+        // MKCoordinateRegion region = map.region;
+        // region.span.latitudeDelta *= scale;
+        // region.span.longitudeDelta *= scale;
+        // [map setRegion:region animated:NO];
+         _rotateStartDistance = distance;
+      }
+      break;
+      // case UIGestureRecognizerStateEnded: {
+      //   _rotateStartDistance = 0;
+      //   NSLog(@"brent rotate end");
+      // }
+      // break;
+    }
+  }
 
   double rotation = (recognizer.rotation * 180 / M_PI);
-  map.camera.heading -= rotation;
+  double newHeading = map.camera.heading - rotation;
+  if (newHeading < 0) {
+    newHeading += 360;
+  }
+  // NSLog(@"brent handleRotate: %f %f", rotation, newHeading);
+  NSLog(@"brent handleRotate: %f %f", cameraDistance);
+  CLLocationCoordinate2D center = map.camera.centerCoordinate;
+  map.camera = [MKMapCamera cameraLookingAtCenterCoordinate:center fromDistance: cameraDistance pitch: 0 heading: newHeading];
   recognizer.rotation = 0;
 }
 

@@ -295,6 +295,20 @@ const propTypes = {
   minDelta: PropTypes.number,
 
   /**
+   * Maximum distance on camera (used for zooming as we pinch)
+   *
+   * @platform ios
+   */
+  maxCameraDistance: PropTypes.number,
+
+  /**
+   * Minimum distance on camera (used for zooming as we pinch)
+   *
+   * @platform ios
+   */
+  minCameraDistance: PropTypes.number,
+
+  /**
    * Insets for the map's legal label, originally at bottom left of the map.
    * See `EdgeInsetsPropType.js` for more information.
    */

@@ -30,9 +30,6 @@
 #import <MapKit/MapKit.h>
 
 static NSString *const RCTMapViewKey = @"MapView";
-// TODO - this should prob be params
-const float MIN_CAMERA_DISTANCE = 500;
-const float MAX_CAMERA_DISTANCE = 1700;
 
 @interface AIRMapManager() <MKMapViewDelegate>
 
@@ -95,6 +92,8 @@ RCT_EXPORT_VIEW_PROPERTY(loadingIndicatorColor, UIColor)
 RCT_EXPORT_VIEW_PROPERTY(handlePanDrag, BOOL)
 RCT_EXPORT_VIEW_PROPERTY(maxDelta, CGFloat)
 RCT_EXPORT_VIEW_PROPERTY(minDelta, CGFloat)
+RCT_EXPORT_VIEW_PROPERTY(maxCameraDistance, CGFloat)
+RCT_EXPORT_VIEW_PROPERTY(minCameraDistance, CGFloat)
 RCT_EXPORT_VIEW_PROPERTY(legalLabelInsets, UIEdgeInsets)
 RCT_EXPORT_VIEW_PROPERTY(mapType, MKMapType)
 RCT_EXPORT_VIEW_PROPERTY(onChange, RCTBubblingEventBlock)
@@ -490,8 +489,12 @@ RCT_EXPORT_METHOD(takeSnapshot:(nonnull NSNumber *)reactTag
         // we just track what we last set it to (and depend on the fact that we're the
         // only ones setting it)
         self.cameraDistance /= scale;
-        self.cameraDistance = MIN(self.cameraDistance, MAX_CAMERA_DISTANCE);
-        self.cameraDistance = MAX(self.cameraDistance, MIN_CAMERA_DISTANCE);
+        if (map.maxCameraDistance) {
+            self.cameraDistance = MIN(self.cameraDistance, map.maxCameraDistance);
+        }
+        if (map.minCameraDistance) {
+            self.cameraDistance = MAX(self.cameraDistance, map.minCameraDistance);
+        }
     }
 
     double newHeading = map.camera.heading - rotation;

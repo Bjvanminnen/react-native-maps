@@ -67,7 +67,7 @@ RCT_EXPORT_MODULE()
 
     [map addGestureRecognizer:tap];
     [map addGestureRecognizer:longPress];
-    // [map addGestureRecognizer:drag];
+    [map addGestureRecognizer:drag];
     [map addGestureRecognizer:pinch];
     [map addGestureRecognizer:rotate];
 
@@ -436,46 +436,19 @@ RCT_EXPORT_METHOD(takeSnapshot:(nonnull NSNumber *)reactTag
     AIRMap *map = (AIRMap *)recognizer.view;
     if (!map.onPanDrag) return;
 
-    // CGPoint translation = [recognizer translationInView:map];
+    CGPoint touchPoint = [recognizer locationInView:map];
+    CLLocationCoordinate2D coord = [map convertPoint:touchPoint toCoordinateFromView:map];
+    map.onPanDrag(@{
+                  @"coordinate": @{
+                          @"latitude": @(coord.latitude),
+                          @"longitude": @(coord.longitude),
+                          },
+                  @"position": @{
+                          @"x": @(touchPoint.x),
+                          @"y": @(touchPoint.y),
+                          },
+                  });
 
-    // map.camera.heading -= 1;
-
-    // first touch point is touchPoint - translation
-
-
-    // CGPoint center = [map convertCoordinate:map.centerCoordinate toPointToView:map];
-
-    // NSLog(@"brent: translation %f,%f", translation.x, translation.y);
-    // center.y -= 1;
-//    center.y -= translation.y;
-
-
-    // CGPoint touchPoint = [recognizer locationInView:map];
-    // CLLocationCoordinate2D coord = [map convertPoint:touchPoint toCoordinateFromView:map];
-
-    // CGPoint center = CGPointMake(touchPoint.x + translation.x, touchPoint.y + translation.y);
-    // CLLocationCoordinate2D newCoord = [map convertPoint:center toCoordinateFromView:map];
-    // NSLog(@"brent: touchPoint %f,%f", touchPoint.x, touchPoint.y);
-    // NSLog(@"brent: translation %f,%f", translation.x, translation.y);
-    // NSLog(@"brent: center %f,%f", center.x, center.y);
-    // NSLog(@"brent: coord %f,%f", coord.latitude, coord.longitude);
-    // NSLog(@"brent: newCoord %f,%f", newCoord.latitude, newCoord.longitude);
-
-    // [map setCenterCoordinate:newCoord];
-
-    // NSLog(@"brent: handle map drag %f,%f", translation.x, translation.y);
-//    NSLog(@"brent: handle map drag %f,%f %f,%f", coord.latitude, coord.longitude, touchPoint.x, touchPoint.y);
-//    map.onPanDrag(@{
-//                  @"coordinate": @{
-//                          @"latitude": @(coord.latitude),
-//                          @"longitude": @(coord.longitude),
-//                          },
-//                  @"position": @{
-//                          @"x": @(touchPoint.x),
-//                          @"y": @(touchPoint.y),
-//                          },
-//                  });
-//
 }
 
 /**
@@ -699,8 +672,6 @@ static int kDragCenterContext;
 
 - (void)mapView:(AIRMap *)mapView regionWillChangeAnimated:(__unused BOOL)animated
 {
-    // NSLog(@"brent_regionWillChangeAnimated %f %f", mapView.region.center.latitude, mapView.region.center.longitude);
-
     [self _regionChanged:mapView];
 
     mapView.regionChangeObserveTimer = [NSTimer timerWithTimeInterval:AIRMapRegionChangeObserveInterval
@@ -714,8 +685,6 @@ static int kDragCenterContext;
 
 - (void)mapView:(AIRMap *)mapView regionDidChangeAnimated:(__unused BOOL)animated
 {
-    // NSLog(@"brent_regionDidChangeAnimated %f %f", mapView.region.center.latitude, mapView.region.center.longitude);
-
     [mapView.regionChangeObserveTimer invalidate];
     mapView.regionChangeObserveTimer = nil;
 
@@ -748,24 +717,7 @@ static int kDragCenterContext;
 
 - (void)_onTick:(NSTimer *)timer
 {
-    // Main problem is that any attempt to "prevent" zoom/pan can do a reset, but not
-    // an actual prevent. Also, calling setRegion here ends up interrupting our gesture
-    // I think we maybe need to handle gestures ourself?
-
-    AIRMap *mapView = timer.userInfo[RCTMapViewKey];
-    MKCoordinateRegion region = mapView.region;
-
-    // NSLog(@"brent_onTick %f %f (%f)", mapView.region.center.latitude, mapView.region.center.longitude, self.lastLatitude);
-    // [self _regionChanged:timer.userInfo[RCTMapViewKey]];
-
-    // if (mapView.region.center.latitude > 37.788371) {
-    //   NSLog(@"brent_prevent lat");
-    //   region.center.latitude = 37.788371;
-    //   // mapView.region = region;
-    //   [mapView setRegion:region animated:NO];
-    // }
-
-//    self.lastLatitude = mapView.region.center.latitude;
+    [self _regionChanged:timer.userInfo[RCTMapViewKey]];
 }
 
 - (void)_regionChanged:(AIRMap *)mapView
@@ -778,49 +730,20 @@ static int kDragCenterContext;
     if (!CLLocationCoordinate2DIsValid(region.center)) {
         return;
     }
-
-    // NSLog(@"brent_regionChanged %f %d", region.span.longitudeDelta, mapView.hasStartedRendering);
-
     // Calculation on float is not 100% accurate. If user zoom to max/min and then move, it's likely the map will auto zoom to max/min from time to time.
     // So let's try to make map zoom back to 99% max or 101% min so that there are some buffer that moving the map won't constantly hitting the max/min bound.
-    if (mapView.hasStartedRendering) {
-
-      // This doesnt work and results in jitters (i.e. you zoom out, then suddenly zoom back in, but also might not be in the same location);
-      if (mapView.maxDelta > FLT_EPSILON && region.span.longitudeDelta > mapView.maxDelta) {
-          // NSLog(@"brent: delta too big %f %f", mapView.maxDelta, region.span.longitudeDelta);
-          needZoom = YES;
-          newLongitudeDelta = mapView.maxDelta * (1 - AIRMapZoomBoundBuffer);
-      } else if (mapView.minDelta > FLT_EPSILON && region.span.longitudeDelta < mapView.minDelta) {
-          // NSLog(@"brent: delta too small %f", mapView.minDelta);
-          needZoom = YES;
-          newLongitudeDelta = mapView.minDelta * (1 + AIRMapZoomBoundBuffer);
-      }
-      if (needZoom) {
-          // NSLog(@"brent: start %f %f", region.span.latitudeDelta, region.span.longitudeDelta);
-          region.span.latitudeDelta = region.span.latitudeDelta / region.span.longitudeDelta * newLongitudeDelta;
-          region.span.longitudeDelta = newLongitudeDelta;
-          // NSLog(@"brent: end %f %f", region.span.latitudeDelta, region.span.longitudeDelta);
-          mapView.region = region;
-      }
+    if (mapView.maxDelta > FLT_EPSILON && region.span.longitudeDelta > mapView.maxDelta) {
+        needZoom = YES;
+        newLongitudeDelta = mapView.maxDelta * (1 - AIRMapZoomBoundBuffer);
+    } else if (mapView.minDelta > FLT_EPSILON && region.span.longitudeDelta < mapView.minDelta) {
+        needZoom = YES;
+        newLongitudeDelta = mapView.minDelta * (1 + AIRMapZoomBoundBuffer);
     }
-
-    // NSLog(@"brent_regionChanged before %f %f", region.span.latitudeDelta, region.span.longitudeDelta);
-    // CGFloat MAX_DELTA = 0.01;
-    // if (region.span.latitudeDelta > MAX_DELTA) {
-    //   NSLog(@"brent_regionChanged modify lat %f", region.span.latitudeDelta, region.span.longitudeDelta);
-    //   region.span.latitudeDelta = MAX_DELTA;
-    //   [mapView setRegion:region animated:YES];
-    //   // mapView.region = region;
-    //   return;
-    //
-    // }
-  //  if (region.span.longitudeDelta > MAX_DELTA) {
-  //    NSLog(@"brent_regionChanged modify long %f %f", region.span.latitudeDelta, region.span.longitudeDelta);
-  //    region.span.longitudeDelta = MAX_DELTA;
-  //  }
-
-
-    // NSLog(@"brent_regionChanged after %f %f", region.span.latitudeDelta, region.span.longitudeDelta);
+    if (needZoom) {
+        region.span.latitudeDelta = region.span.latitudeDelta / region.span.longitudeDelta * newLongitudeDelta;
+        region.span.longitudeDelta = newLongitudeDelta;
+        mapView.region = region;
+    }
 
     // Continously observe region changes
     [self _emitRegionChangeEvent:mapView continuous:YES];
@@ -828,24 +751,23 @@ static int kDragCenterContext;
 
 - (void)_emitRegionChangeEvent:(AIRMap *)mapView continuous:(BOOL)continuous
 {
-    // NSLog(@"brent_emit");
-//     if (!mapView.ignoreRegionChanges && mapView.onChange) {
-//         MKCoordinateRegion region = mapView.region;
-//         if (!CLLocationCoordinate2DIsValid(region.center)) {
-//             return;
-//         }
-//
-// #define FLUSH_NAN(value) (isnan(value) ? 0 : value)
-//         mapView.onChange(@{
-//                 @"continuous": @(continuous),
-//                 @"region": @{
-//                         @"latitude": @(FLUSH_NAN(region.center.latitude)),
-//                         @"longitude": @(FLUSH_NAN(region.center.longitude)),
-//                         @"latitudeDelta": @(FLUSH_NAN(region.span.latitudeDelta)),
-//                         @"longitudeDelta": @(FLUSH_NAN(region.span.longitudeDelta)),
-//                 }
-//         });
-//     }
+    if (!mapView.ignoreRegionChanges && mapView.onChange) {
+        MKCoordinateRegion region = mapView.region;
+        if (!CLLocationCoordinate2DIsValid(region.center)) {
+            return;
+        }
+
+#define FLUSH_NAN(value) (isnan(value) ? 0 : value)
+        mapView.onChange(@{
+                @"continuous": @(continuous),
+                @"region": @{
+                        @"latitude": @(FLUSH_NAN(region.center.latitude)),
+                        @"longitude": @(FLUSH_NAN(region.center.longitude)),
+                        @"latitudeDelta": @(FLUSH_NAN(region.span.latitudeDelta)),
+                        @"longitudeDelta": @(FLUSH_NAN(region.span.longitudeDelta)),
+                }
+        });
+    }
 }
 
 /** Returns the distance of |pt| to |poly| in meters

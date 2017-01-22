@@ -216,8 +216,6 @@ const CGFloat AIRMapZoomBoundBuffer = 0.01;
 
 - (void)setRegion:(MKCoordinateRegion)region animated:(BOOL)animated
 {
-    // NSLog(@"brent_setRegion");
-
     // If location is invalid, abort
     if (!CLLocationCoordinate2DIsValid(region.center)) {
         return;

@@ -80,6 +80,8 @@ const CGFloat AIRMapZoomBoundBuffer = 0.01;
         self.calloutView = [SMCalloutView platformCalloutView];
         self.calloutView.delegate = self;
     }
+    self.cameraDistance = 1000;
+    self.cameraHeading = 0;
     return self;
 }
 
@@ -231,6 +233,26 @@ const CGFloat AIRMapZoomBoundBuffer = 0.01;
 
     // Animate/move to new position
     [super setRegion:region animated:animated];
+
+    [self adjustCamera:1 withRotation:0];
+}
+
+- (void)adjustCamera:(float)scale withRotation:(float)rotation {
+  CLLocationCoordinate2D center = self.camera.centerCoordinate;
+  self.cameraDistance /= scale;
+  if (self.maxCameraDistance) {
+      self.cameraDistance = MIN(self.cameraDistance, self.maxCameraDistance);
+  }
+  if (self.minCameraDistance) {
+      self.cameraDistance = MAX(self.cameraDistance, self.minCameraDistance);
+  }
+
+  self.cameraHeading -= rotation;
+  if (self.cameraHeading < 0) {
+    self.cameraHeading += 360;
+  }
+
+  self.camera = [MKMapCamera cameraLookingAtCenterCoordinate:center fromDistance:self.cameraDistance pitch:0 heading:self.cameraHeading];
 }
 
 - (void)setInitialRegion:(MKCoordinateRegion)initialRegion {

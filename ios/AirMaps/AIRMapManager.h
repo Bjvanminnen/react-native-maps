@@ -12,6 +12,5 @@
 @interface AIRMapManager : RCTViewManager<UIGestureRecognizerDelegate>
 
 @property (nonatomic, assign) float pinchStartDistance;
-@property (nonatomic, assign) float cameraDistance;
 
 @end

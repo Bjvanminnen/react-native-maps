@@ -69,7 +69,6 @@ RCT_EXPORT_MODULE()
     [map addGestureRecognizer:rotate];
 
     self.pinchStartDistance = 0;
-    self.cameraDistance = 1000;
 
     return map;
 }
@@ -481,29 +480,14 @@ RCT_EXPORT_METHOD(takeSnapshot:(nonnull NSNumber *)reactTag
     CGPoint p1 = [recognizer locationOfTouch:0 inView:map];
     CGPoint p2 = [recognizer locationOfTouch:1 inView:map];
     float distance = sqrt(pow(p2.x - p1.x, 2) + pow(p2.y - p1.y, 2));
-    float scale = distance / self.pinchStartDistance;
+
+    float scale = 1;
+    if ([recognizer state] == UIGestureRecognizerStateChanged) {
+        scale = distance / self.pinchStartDistance;
+    }
     self.pinchStartDistance = distance;
 
-    if ([recognizer state] == UIGestureRecognizerStateChanged) {
-        // We don't have any way to ask the camera for it's current distance, so instead
-        // we just track what we last set it to (and depend on the fact that we're the
-        // only ones setting it)
-        self.cameraDistance /= scale;
-        if (map.maxCameraDistance) {
-            self.cameraDistance = MIN(self.cameraDistance, map.maxCameraDistance);
-        }
-        if (map.minCameraDistance) {
-            self.cameraDistance = MAX(self.cameraDistance, map.minCameraDistance);
-        }
-    }
-
-    double newHeading = map.camera.heading - rotation;
-    if (newHeading < 0) {
-        newHeading += 360;
-    }
-    // NSLog(@"brent handleRotate: %f %f", rotation, newHeading);
-    CLLocationCoordinate2D center = map.camera.centerCoordinate;
-    map.camera = [MKMapCamera cameraLookingAtCenterCoordinate:center fromDistance:self.cameraDistance pitch:0 heading:newHeading];
+    [map adjustCamera:scale withRotation:rotation];
 }
 
 - (void)handleMapRotate:(UIRotationGestureRecognizer*)recognizer {

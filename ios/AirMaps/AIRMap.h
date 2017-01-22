@@ -42,6 +42,8 @@ extern const CGFloat AIRMapZoomBoundBuffer;
 @property (nonatomic, assign) CLLocationCoordinate2D pendingCenter;
 @property (nonatomic, assign) MKCoordinateSpan pendingSpan;
 
+@property (nonatomic, assign) float cameraDistance;
+@property (nonatomic, assign) float cameraHeading;
 
 @property (nonatomic, assign) BOOL ignoreRegionChanges;
 
@@ -61,5 +63,6 @@ extern const CGFloat AIRMapZoomBoundBuffer;
 - (void)cacheViewIfNeeded;
 - (void)beginLoading;
 - (void)finishLoading;
+- (void)adjustCamera:(float)scale withRotation:(float)rotation;
 
 @end

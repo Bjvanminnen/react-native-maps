@@ -455,11 +455,11 @@ RCT_EXPORT_METHOD(takeSnapshot:(nonnull NSNumber *)reactTag
  * Make it so that our pinch and rotation gestures can happen in conjunction with each other
  */
 - (BOOL)gestureRecognizer:(UIGestureRecognizer *)one shouldRecognizeSimultaneouslyWithGestureRecognizer:(UIGestureRecognizer *)two {
-  if (([one isKindOfClass:[UIRotationGestureRecognizer class]] && [two isKindOfClass:[UIPinchGestureRecognizer class]]) ||
-      ([one isKindOfClass:[UIPinchGestureRecognizer class]] && [two isKindOfClass:[UIRotationGestureRecognizer class]])) {
-    return YES;
-  }
-  return NO;
+    if (([one isKindOfClass:[UIRotationGestureRecognizer class]] && [two isKindOfClass:[UIPinchGestureRecognizer class]]) ||
+        ([one isKindOfClass:[UIPinchGestureRecognizer class]] && [two isKindOfClass:[UIRotationGestureRecognizer class]])) {
+          return YES;
+    }
+    return NO;
 }
 
 - (void)handleMapPinch:(UIPinchGestureRecognizer*)recognizer {
@@ -472,41 +472,41 @@ RCT_EXPORT_METHOD(takeSnapshot:(nonnull NSNumber *)reactTag
  * rotation - provided in degrees
  */
 - (void)handlePinchAndRotate:(UIGestureRecognizer *)recognizer withRotation:(float)rotation {
-  AIRMap *map = (AIRMap *)recognizer.view;
+    AIRMap *map = (AIRMap *)recognizer.view;
 
-  if (recognizer.numberOfTouches < 2) {
-    return;
-  }
+    if (recognizer.numberOfTouches < 2) {
+        return;
+    }
 
-  // Calculate how the distance between our touch points has changed
-  CGPoint p1 = [recognizer locationOfTouch:0 inView:map];
-  CGPoint p2 = [recognizer locationOfTouch:1 inView:map];
-  float distance = sqrt(pow(p2.x - p1.x, 2) + pow(p2.y - p1.y, 2));
-  float scale = distance / self.pinchStartDistance;
-  self.pinchStartDistance = distance;
+    // Calculate how the distance between our touch points has changed
+    CGPoint p1 = [recognizer locationOfTouch:0 inView:map];
+    CGPoint p2 = [recognizer locationOfTouch:1 inView:map];
+    float distance = sqrt(pow(p2.x - p1.x, 2) + pow(p2.y - p1.y, 2));
+    float scale = distance / self.pinchStartDistance;
+    self.pinchStartDistance = distance;
 
-  if ([recognizer state] == UIGestureRecognizerStateChanged) {
-    // We don't have any way to ask the camera for it's current distance, so instead
-    // we just track what we last set it to (and depend on the fact that we're the
-    // only ones setting it)
-    self.cameraDistance /= scale;
-    self.cameraDistance = MIN(self.cameraDistance, MAX_CAMERA_DISTANCE);
-    self.cameraDistance = MAX(self.cameraDistance, MIN_CAMERA_DISTANCE);
-  }
+    if ([recognizer state] == UIGestureRecognizerStateChanged) {
+        // We don't have any way to ask the camera for it's current distance, so instead
+        // we just track what we last set it to (and depend on the fact that we're the
+        // only ones setting it)
+        self.cameraDistance /= scale;
+        self.cameraDistance = MIN(self.cameraDistance, MAX_CAMERA_DISTANCE);
+        self.cameraDistance = MAX(self.cameraDistance, MIN_CAMERA_DISTANCE);
+    }
 
-  double newHeading = map.camera.heading - rotation;
-  if (newHeading < 0) {
-    newHeading += 360;
-  }
-  // NSLog(@"brent handleRotate: %f %f", rotation, newHeading);
-  CLLocationCoordinate2D center = map.camera.centerCoordinate;
-  map.camera = [MKMapCamera cameraLookingAtCenterCoordinate:center fromDistance:self.cameraDistance pitch:0 heading:newHeading];
+    double newHeading = map.camera.heading - rotation;
+    if (newHeading < 0) {
+        newHeading += 360;
+    }
+    // NSLog(@"brent handleRotate: %f %f", rotation, newHeading);
+    CLLocationCoordinate2D center = map.camera.centerCoordinate;
+    map.camera = [MKMapCamera cameraLookingAtCenterCoordinate:center fromDistance:self.cameraDistance pitch:0 heading:newHeading];
 }
 
 - (void)handleMapRotate:(UIRotationGestureRecognizer*)recognizer {
-  double rotation = (recognizer.rotation * 180 / M_PI);
-  [self handlePinchAndRotate:recognizer withRotation:rotation];
-  recognizer.rotation = 0;
+    double rotation = (recognizer.rotation * 180 / M_PI);
+    [self handlePinchAndRotate:recognizer withRotation:rotation];
+    recognizer.rotation = 0;
 }
 
 - (void)handleMapLongPress:(UITapGestureRecognizer *)recognizer {
